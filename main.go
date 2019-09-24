@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/DavidGamba/go-getoptions"
@@ -37,12 +38,18 @@ func main() {
 		die("%v", err)
 	}
 
-	for _, host := range hosts {
-		err = pingHost(host)
-		if err != nil {
-			warn("%s ping failed: %v", host, err)
-		}
+	// Pinger generates a tracking number for each instance, but if the instances
+	// are created around the same time, they get the same number. This ensures
+	// each pinger has a unique (but related) tracking number.
+	trackerBase := time.Now().UnixNano()
+
+	var wg sync.WaitGroup
+	for i, host := range hosts {
+		wg.Add(1)
+		go pingHost(host, trackerBase+int64(i), &wg)
 	}
+
+	wg.Wait()
 }
 
 func parseArgs() []string {
@@ -70,18 +77,25 @@ func parseArgs() []string {
 	return hosts
 }
 
-func pingHost(host string) error {
+func pingHost(host string, tracker int64, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	pinger, err := ping.NewPinger(host)
 	if err != nil {
-		return err
+		warn("%s error: %v", host, err)
+		return
 	}
 
+	pinger.Tracker = tracker
 	pinger.Count = Count
 	pinger.Timeout = Timeout
 	pinger.Interval = Interval
 	pinger.Run()
 
-	return outputStats(host, pinger.Statistics())
+	err = outputStats(host, pinger.Statistics())
+	if err != nil {
+		warn("outputting stats: %v", err)
+	}
 }
 
 func writeCSV(values ...string) error {
