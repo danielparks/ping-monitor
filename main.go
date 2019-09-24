@@ -11,15 +11,24 @@ import (
 )
 
 var (
-	OutputCSV bool
-	Count     int
-	Timeout   time.Duration
+	Count      int
+	MaxHostLen = 1
+	OutputCSV  bool
+	Timeout    time.Duration
 )
 
 const Interval = 1 * time.Second
 
 func main() {
 	hosts := parseArgs()
+
+	if !OutputCSV {
+		for _, host := range hosts {
+			if len(host) > MaxHostLen {
+				MaxHostLen = len(host)
+			}
+		}
+	}
 
 	Timeout = time.Duration(2*Count) * time.Second
 
@@ -117,8 +126,9 @@ func outputStats(host string, stats *ping.Statistics) error {
 		)
 	}
 
+	hostFmt := fmt.Sprintf("%%-%ds", MaxHostLen)
 	fmt.Printf(
-		"%s  %d/%d success  min=%v  max=%v  avg=%v  stddev=%v\n",
+		hostFmt+"  %3d/%-3d received  min=%-12v  max=%-12v  avg=%-12v  stddev=%-12v\n",
 		host, stats.PacketsRecv, stats.PacketsSent, stats.MinRtt, stats.MaxRtt,
 		stats.AvgRtt, stats.StdDevRtt)
 
