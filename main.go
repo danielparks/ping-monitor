@@ -14,6 +14,7 @@ import (
 var (
 	Count      int
 	HostFmt    string
+	ICMP       bool
 	MaxHostLen = 1
 	OutputCSV  bool
 	Timeout    time.Duration
@@ -58,8 +59,10 @@ func parseArgs() []string {
 	opt := getoptions.New()
 	opt.Bool("help", false, opt.Alias("h", "?"))
 
-	opt.BoolVar(&OutputCSV, "output-csv", false, opt.Alias("csv"))
+	opt.BoolVar(&ICMP, "icmp", false, opt.Alias("i"),
+		opt.Description("requires privileges"))
 	opt.IntVar(&Count, "count", 30, opt.Alias("c"))
+	opt.BoolVar(&OutputCSV, "output-csv", false, opt.Alias("csv"))
 
 	opt.SetMode(getoptions.Bundling) // -opt == -o -p -t
 	opt.SetRequireOrder()            // stop processing after the first argument is found
@@ -88,6 +91,13 @@ func pingHost(host string, tracker int64, wg *sync.WaitGroup) {
 		return
 	}
 
+	// To use UDP ping (ICMP == false) on Linux:
+	// # sysctl -w net.ipv4.ping_group_range="0 2147483647"
+
+	// To use ICMP ping on Linux without root:
+	// # setcap cap_net_raw=+ep ping-monitor
+
+	pinger.SetPrivileged(ICMP) // Actually determines whether it uses ICMP or UDP
 	pinger.Tracker = tracker
 	pinger.Count = Count
 	pinger.Timeout = Timeout
