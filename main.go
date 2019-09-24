@@ -13,6 +13,7 @@ import (
 
 var (
 	Count      int
+	HostFmt    string
 	MaxHostLen = 1
 	OutputCSV  bool
 	Timeout    time.Duration
@@ -124,6 +125,13 @@ func outputHeader() error {
 		)
 	}
 
+	HostFmt = fmt.Sprintf("%%-%ds", MaxHostLen)
+	fmt.Printf(
+		// host..  ###/###   ############
+		HostFmt+"  Packets   Round trip times\n"+
+			HostFmt+"  Received  %-12v %-12v %-12v %-12v\n",
+		"", "Host", "Minimum", "Maximum", "Mean", "Std. Dev.")
+
 	return nil
 }
 
@@ -140,9 +148,8 @@ func outputStats(host string, stats *ping.Statistics) error {
 		)
 	}
 
-	hostFmt := fmt.Sprintf("%%-%ds", MaxHostLen)
 	fmt.Printf(
-		hostFmt+"  %3d/%-3d received  min=%-12v  max=%-12v  avg=%-12v  stddev=%-12v\n",
+		HostFmt+"  %3d/%-3d   %-12v %-12v %-12v %-12v\n",
 		host, stats.PacketsRecv, stats.PacketsSent, stats.MinRtt, stats.MaxRtt,
 		stats.AvgRtt, stats.StdDevRtt)
 
