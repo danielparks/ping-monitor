@@ -32,7 +32,8 @@ func main() {
 		}
 	}
 
-	Timeout = time.Duration(2*Count) * time.Second
+	// Give it an extra second.
+	Timeout = time.Duration(Count+1) * time.Second
 
 	err := outputHeader()
 	if err != nil {
