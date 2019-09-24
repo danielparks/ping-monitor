@@ -6,37 +6,59 @@ import (
 	"os"
 	"time"
 
+	"github.com/DavidGamba/go-getoptions"
 	"github.com/sparrc/go-ping"
 )
 
 var (
-	OutputCSV = true
-	Count int
-	Timeout time.Duration
-	Interval time.Duration
+	OutputCSV bool
+	Count     int
+	Timeout   time.Duration
 )
 
+const Interval = 1 * time.Second
+
 func main() {
-	var err error
+	hosts := parseArgs()
 
-	Count = 30
+	Timeout = time.Duration(2*Count) * time.Second
 
-	Timeout, err = time.ParseDuration("60s")
+	err := outputHeader()
 	if err != nil {
 		die("%v", err)
 	}
 
-	Interval, err = time.ParseDuration("1s")
-	if err != nil {
-		die("%v", err)
-	}
-
-	for _, host := range os.Args[1:] {
+	for _, host := range hosts {
 		err = pingHost(host)
 		if err != nil {
 			warn("%s ping failed: %v", host, err)
 		}
 	}
+}
+
+func parseArgs() []string {
+	opt := getoptions.New()
+	opt.Bool("help", false, opt.Alias("h", "?"))
+
+	opt.BoolVar(&OutputCSV, "output-csv", false, opt.Alias("csv"))
+	opt.IntVar(&Count, "count", 30, opt.Alias("c"))
+
+	opt.SetMode(getoptions.Bundling) // -opt == -o -p -t
+	opt.SetRequireOrder()            // stop processing after the first argument is found
+
+	hosts, err := opt.Parse(os.Args[1:])
+	if err != nil {
+		warn("Error parsing arguments: %v", err)
+		fmt.Fprintf(os.Stderr, opt.Help())
+		os.Exit(1)
+	}
+
+	if opt.Called("help") {
+		fmt.Print(opt.Help())
+		os.Exit(0)
+	}
+
+	return hosts
 }
 
 func pingHost(host string) error {
@@ -45,7 +67,7 @@ func pingHost(host string) error {
 		return err
 	}
 
-	pinger.Count = 30
+	pinger.Count = Count
 	pinger.Timeout = Timeout
 	pinger.Interval = Interval
 	pinger.Run()
@@ -53,11 +75,38 @@ func pingHost(host string) error {
 	return outputStats(host, pinger.Statistics())
 }
 
+func writeCSV(values ...string) error {
+	w := csv.NewWriter(os.Stdout)
+
+	err := w.Write(values)
+	if err != nil {
+		return err
+	}
+
+	w.Flush()
+
+	return w.Error()
+}
+
+func outputHeader() error {
+	if OutputCSV {
+		return writeCSV(
+			"host",
+			"received",
+			"sent",
+			"min_ms",
+			"max_ms",
+			"mean_ms",
+			"stddev_ms",
+		)
+	}
+
+	return nil
+}
+
 func outputStats(host string, stats *ping.Statistics) error {
 	if OutputCSV {
-		w := csv.NewWriter(os.Stdout)
-
-		err := w.Write([]string{
+		return writeCSV(
 			host,
 			fmt.Sprint(stats.PacketsRecv),
 			fmt.Sprint(stats.PacketsSent),
@@ -65,19 +114,7 @@ func outputStats(host string, stats *ping.Statistics) error {
 			fmt.Sprintf("%.6f", stats.MaxRtt.Seconds()*1000),
 			fmt.Sprintf("%.6f", stats.AvgRtt.Seconds()*1000),
 			fmt.Sprintf("%.6f", stats.StdDevRtt.Seconds()*1000),
-		})
-		if err != nil {
-			return err
-		}
-
-		w.Flush()
-
-		err = w.Error()
-		if err != nil {
-			return err
-		}
-
-		return nil
+		)
 	}
 
 	fmt.Printf(
@@ -89,7 +126,7 @@ func outputStats(host string, stats *ping.Statistics) error {
 }
 
 func warn(msg string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, msg + "\n", args...)
+	fmt.Fprintf(os.Stderr, msg+"\n", args...)
 }
 
 func die(msg string, args ...interface{}) {
