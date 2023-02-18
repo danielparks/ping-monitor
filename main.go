@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/DavidGamba/go-getoptions"
-	"github.com/sparrc/go-ping"
+	"github.com/prometheus-community/pro-bing"
 )
 
 var (
@@ -41,15 +41,10 @@ func main() {
 		die("%v", err)
 	}
 
-	// Pinger generates a tracking number for each instance, but if the instances
-	// are created around the same time, they get the same number. This ensures
-	// each pinger has a unique (but related) tracking number.
-	trackerBase := time.Now().UnixNano()
-
 	var wg sync.WaitGroup
 	for i, host := range hosts {
 		wg.Add(1)
-		go pingHost(host, trackerBase+int64(i), &wg)
+		go pingHost(host, uint64(i), &wg)
 	}
 
 	wg.Wait()
@@ -82,10 +77,10 @@ func parseArgs() []string {
 	return hosts
 }
 
-func pingHost(host string, tracker int64, wg *sync.WaitGroup) {
+func pingHost(host string, tracker uint64, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	pinger, err := ping.NewPinger(host)
+	pinger, err := probing.NewPinger(host)
 	if err != nil {
 		warn("%s error: %v", host, err)
 		return
@@ -146,7 +141,7 @@ func outputHeader() error {
 	return nil
 }
 
-func outputStats(host string, stats *ping.Statistics) error {
+func outputStats(host string, stats *probing.Statistics) error {
 	if OutputCSV {
 		return writeCSV(
 			host,
