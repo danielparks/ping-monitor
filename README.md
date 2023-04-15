@@ -29,6 +29,11 @@ google.com    5/5     6.477ms      13.387ms     8.9992ms     2.859179ms
 github.com    5/5     83.166ms     86.511ms     84.501ms     1.174088ms
 ```
 
+## Development status
+
+I am unlikely to put significant effort into this project, but if you run into
+problems please do file an [issue] or submit a [PR].
+
 ## License
 
 This project dual-licensed under the Apache 2 and MIT licenses. You may choose
@@ -42,3 +47,6 @@ to use either.
 Unless you explicitly state otherwise, any contribution you submit as defined
 in the Apache 2.0 license shall be dual licensed as above, without any
 additional terms or conditions.
+
+[issue]: https://github.com/danielparks/ping-monitor/issues
+[PR]: https://github.com/danielparks/ping-monitor/pulls
